@@ -33,35 +33,45 @@ const genAI = new GoogleGenerativeAI(geminiApiKey);
 const textModel = genAI.getGenerativeModel({ model: "gemini-pro" });
 
 // Ensure you have the correct Mistral API endpoint and your API key
-const mistralEndpoint = 'https://api.mistral.ai/v1/chat/completions'; // Use the actual endpoint provided by Mistral
+const mistralEndpoint = "https://api.mistral.ai/v1/chat/completions"; // Use the actual endpoint provided by Mistral
 
 // Store conversation histories
 const conversationHistories = {};
 
-
 // Handler for '/start' command - sends a welcome message
 bot.onText(/\/start/, (msg) => {
   const welcomeMessage = `
-🌟 *Welcome to NourBot!* 🌟
+🚀 *Welcome to the Extraordinary NourBot Universe!* 🚀
 
-I'm here to make your day a bit more interesting and fun. Here's what I can offer:
+Embark on a journey with AI at your side, ready to explore, create, and solve mysteries:
 
-- 🤔 \`/ask [your question]\` - *Ask me anything* and I'll try to provide an answer.
-- 🎨 \`/art [your prompt]\` - *Generate cool images* based on your prompt.
-- 🌍 \`/weath [location]\` - Get the *weather forecast* for your specified location.
-- 🔄 \`/trs [language code] [text]\` - *Translate text* to your chosen language. Reply to a message you want to translate.
-- 📖 \`/tell [story prompt]\` - I can *generate stories or elaborate* on your prompts.
-- 🖼️ \`/img [image prompt]\` - Generate an image based on a specific *Stability AI model*.
-- 🔍 \`/describe\` - *Describe an image*. Reply to an image with this command for a description.
-- 🗣️ \`/ai [your question]\` - Use *Cohere AI* to get detailed answers from the web.
-- 🎭 \`/dalle [image prompt]\` - Use *Azure's DALL-E model* to generate creative images.
-- 🌐 \`/real [prompt]\` - Generate photorealistic images with specific details.
-- 👓 \`/focus [prompt]\` - Create images with a focus on clarity and detail.
+🔍 *Inquiry & Intellect*
+- \`/ai [your query]\` - Unearth deep insights and real-time web wisdom.
+- \`/chat [your musings]\` - A chat companion for every curiosity.
+- \`/mistery [dive deeper]\` - For questions that tickle your brain, let's uncover secrets together.
 
-_Created by Yassine Dorgâa_
+🖌️ *Creativity Unleashed*
+- \`/art [imagine anything]\` - Artistic creations from your thoughts.
+- \`/img [picture this]\` - Visualizing dreams into digital reality.
+- \`/describe\` - Reply to a photo for its untold saga.
+- \`/real [ultra-vivid]\` - Crafting hyper-realistic scenes.
+- \`/focus [crystal clarity]\` - For when details make the difference.
 
-🚀 *Let's dive in!* Use any of the commands above to start interacting. Feel free to ask for help or explore on your own.
-  `;
+🌍 *Worldly Wisdom*
+- \`/trs [lang] [text]\` - Reply to a message for instant language translation.
+- \`/time [any place]\` - Global time, anytime.
+- \`/weath [location]\` - Weather forecasts, rain or shine.
+
+📖 *Tales & Tell-alls*
+- \`/tell [spin a story]\` - AI-crafted tales from your prompts.
+
+Adventure awaits with every command! Let’s make each day more interesting. Ready to explore?
+
+*Your journey begins now...* 🌌
+
+Crafted with 💡 by @YassineDG
+`;
+
   bot.sendMessage(msg.chat.id, welcomeMessage, { parse_mode: "Markdown" });
 });
 
@@ -72,36 +82,51 @@ bot.onText(/\/time (.+)/, async (msg, match) => {
   const messageId = msg.message_id; // Get the ID of the user's message to reply to it
 
   try {
-    const url = `https://timezone.abstractapi.com/v1/current_time/?api_key=${abstractApiKey}&location=${encodeURIComponent(userInputLocation)}`;
+    const url = `https://timezone.abstractapi.com/v1/current_time/?api_key=${abstractApiKey}&location=${encodeURIComponent(
+      userInputLocation
+    )}`;
     const response = await fetch(url);
     const data = await response.json();
 
     // Check if the response is OK
     if (response.ok) {
       const dateTime = new Date(data.datetime);
-      const formattedDate = `*${dateTime.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}*`;
-      const formattedTime = `*${dateTime.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}*`;
+      const formattedDate = `*${dateTime.toLocaleDateString("en-US", {
+        weekday: "long",
+        year: "numeric",
+        month: "long",
+        day: "numeric",
+      })}*`;
+      const formattedTime = `*${dateTime.toLocaleTimeString("en-US", {
+        hour: "2-digit",
+        minute: "2-digit",
+        second: "2-digit",
+      })}*`;
       const timeZoneName = data.timezone_name;
       const preciseLocation = data.timezone_location; // More precise location from the API
       const gmtOffset = data.gmt_offset;
-      const isDst = data.is_dst ? 'Yes' : 'No';
+      const isDst = data.is_dst ? "Yes" : "No";
 
       // Forming the reply message with detailed location
       const replyMessage = `⏰ Current time in *${preciseLocation}*\n📅 Date: ${formattedDate}\n⏰ Time: ${formattedTime}\n🌐 Time Zone: ${timeZoneName}\n⏳ GMT Offset: ${gmtOffset}\n🕰️ Daylight Saving Time: ${isDst}`;
 
       // Using reply_to_message_id to make the bot's message a reply
-      bot.sendMessage(chatId, replyMessage, { parse_mode: 'Markdown', reply_to_message_id: messageId });
+      bot.sendMessage(chatId, replyMessage, {
+        parse_mode: "Markdown",
+        reply_to_message_id: messageId,
+      });
     } else {
       throw new Error(data.message); // Use the error message from the response, if any
     }
   } catch (error) {
     console.error(error);
-    bot.sendMessage(chatId, "Sorry, I couldn't fetch the time for that location.", { reply_to_message_id: messageId });
+    bot.sendMessage(
+      chatId,
+      "Sorry, I couldn't fetch the time for that location.",
+      { reply_to_message_id: messageId }
+    );
   }
 });
-
-
-
 
 // Handler for '/translate' command - translates user queries
 
@@ -354,8 +379,10 @@ bot.onText(/\/chat (.+)/, async (msg, match) => {
 
   // Consider a limit for stored messages to maintain context without overflow
   const contextLimit = 20; // Example: Only keep the last 5 messages
-  const conversationContext = conversationHistories[chatId].slice(-contextLimit).join(' ');
-  const prompt = conversationContext + ' ' + userQuery; // Combine context with the new user query
+  const conversationContext = conversationHistories[chatId]
+    .slice(-contextLimit)
+    .join(" ");
+  const prompt = conversationContext + " " + userQuery; // Combine context with the new user query
 
   try {
     // Generate response considering the entire conversation context
@@ -366,8 +393,11 @@ bot.onText(/\/chat (.+)/, async (msg, match) => {
     // Update conversation history
     conversationHistories[chatId].push(userQuery); // Add user query to history
     conversationHistories[chatId].push(text); // Add bot response to history
-    if (conversationHistories[chatId].length > contextLimit * 2) { // Double the limit to account for both questions and answers
-      conversationHistories[chatId] = conversationHistories[chatId].slice(-contextLimit * 2);
+    if (conversationHistories[chatId].length > contextLimit * 2) {
+      // Double the limit to account for both questions and answers
+      conversationHistories[chatId] = conversationHistories[chatId].slice(
+        -contextLimit * 2
+      );
     }
 
     // Respond to the user
@@ -377,13 +407,16 @@ bot.onText(/\/chat (.+)/, async (msg, match) => {
     });
   } catch (error) {
     console.error("Error processing /ask command:", error);
-    bot.sendMessage(chatId, "Sorry, an error occurred while processing your request.", {
-      parse_mode: "Markdown",
-      reply_to_message_id: messageId,
-    });
+    bot.sendMessage(
+      chatId,
+      "Sorry, an error occurred while processing your request.",
+      {
+        parse_mode: "Markdown",
+        reply_to_message_id: messageId,
+      }
+    );
   }
 });
-
 
 // Handler for Stability AI image generation ('/img' command)
 bot.onText(/\/img (.+)/, async (msg, match) => {
@@ -740,20 +773,21 @@ bot.on("message", async (msg) => {
 async function chatWithMistral(message) {
   try {
     const response = await fetch(mistralEndpoint, {
-      method: 'POST',
+      method: "POST",
       headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${mistralApiKey}`
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${mistralApiKey}`,
       },
       body: JSON.stringify({
-        model: 'mistral-medium', // Specify the model you wish to use
-        messages: [{ role: 'user', content: message }],
-        safe_prompt: false // Set to true if you want to enable safe mode
-      })
+        model: "mistral-medium", // Specify the model you wish to use
+        messages: [{ role: "user", content: message }],
+        safe_prompt: false, // Set to true if you want to enable safe mode
+      }),
     });
 
     const data = await response.json();
-    if (!response.ok) throw new Error(data.message || "Failed to communicate with Mistral AI.");
+    if (!response.ok)
+      throw new Error(data.message || "Failed to communicate with Mistral AI.");
     return data.choices[0].message.content; // Adjust according to the actual API response structure.
   } catch (error) {
     console.error("Error communicating with Mistral AI:", error);
@@ -775,13 +809,19 @@ bot.onText(/\/mistery (.+)/, async (msg, match) => {
   } catch (error) {
     // Handle rate limit specific error
     if (error.message.includes("rate limit exceeded")) {
-      bot.sendMessage(chatId, "I need to take a breather and think. Please try again in a little while.", replyOptions);
+      bot.sendMessage(
+        chatId,
+        "I need to take a breather and think. Please try again in a little while.",
+        replyOptions
+      );
     } else {
-      bot.sendMessage(chatId, "Oops, encountered an unexpected glitch. Let's try that again later?", replyOptions);
+      bot.sendMessage(
+        chatId,
+        "Oops, encountered an unexpected glitch. Let's try that again later?",
+        replyOptions
+      );
     }
   }
 });
-
-
 
 // Placeholder for additional features
