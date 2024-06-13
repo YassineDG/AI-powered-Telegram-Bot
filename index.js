@@ -2,7 +2,6 @@ import TelegramBot from "node-telegram-bot-api";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import Replicate from "replicate";
 import fetch from "node-fetch";
-import fs from "fs";
 import dotenv from "dotenv";
 import { CohereClient } from "cohere-ai";
 import { v4 as uuidv4 } from "uuid";
@@ -12,9 +11,6 @@ dotenv.config();
 // Load the environment variables
 const botToken = process.env.TELEGRAM_BOT_TOKEN;
 const geminiApiKey = process.env.GEMINI_API_KEY;
-const stabilityApiKey = process.env.STABILITY_API_KEY;
-const engineId = "stable-diffusion-v1-6";
-const apiHost = "https://api.stability.ai";
 const replicate = new Replicate({ auth: process.env.REPLICATE_API_TOKEN });
 const cohere = new CohereClient({
   token: process.env.COHERE_API_KEY,
@@ -366,39 +362,29 @@ bot.onText(/\/ai (.+)/, async (msg, match) => {
   }
 });
 
-// Handler for '/ask' command - processes user queries
+// Handler for '/chat' command - processes user queries
 bot.onText(/\/chat (.+)/, async (msg, match) => {
   const chatId = msg.chat.id;
   const userQuery = match[1];
   const messageId = msg.message_id;
 
-  // Initialize or update the conversation history
+  // Initialize the conversation history if it doesn't already exist
   if (!conversationHistories[chatId]) {
     conversationHistories[chatId] = [];
   }
 
-  // Consider a limit for stored messages to maintain context without overflow
-  const contextLimit = 20; // Example: Only keep the last 5 messages
-  const conversationContext = conversationHistories[chatId]
-    .slice(-contextLimit)
-    .join(" ");
-  const prompt = conversationContext + " " + userQuery; // Combine context with the new user query
+  // Add user query to history
+  conversationHistories[chatId].push(userQuery);
 
   try {
     // Generate response considering the entire conversation context
+    const prompt = conversationHistories[chatId].join(" "); // Combine entire history with the new user query
     const result = await textModel.generateContent(prompt);
     const response = await result.response;
     const text = await response.text();
 
-    // Update conversation history
-    conversationHistories[chatId].push(userQuery); // Add user query to history
-    conversationHistories[chatId].push(text); // Add bot response to history
-    if (conversationHistories[chatId].length > contextLimit * 2) {
-      // Double the limit to account for both questions and answers
-      conversationHistories[chatId] = conversationHistories[chatId].slice(
-        -contextLimit * 2
-      );
-    }
+    // Add bot response to history
+    conversationHistories[chatId].push(text);
 
     // Respond to the user
     bot.sendMessage(chatId, text, {
@@ -418,55 +404,62 @@ bot.onText(/\/chat (.+)/, async (msg, match) => {
   }
 });
 
-// Handler for Stability AI image generation ('/img' command)
+
+// Handler for stable diffusion 3  image generation ('/img' command)
 bot.onText(/\/img (.+)/, async (msg, match) => {
   const chatId = msg.chat.id;
-  const prompt = match[1];
+  const prompt = encodeURIComponent(match[1]);
+  const messageId = msg.message_id; // Get the ID of the user's message to reply to it
+  const username = msg.from.username; // Get the username of the user who sent the message
+
   const processingMessage = await bot.sendMessage(
     chatId,
     "Generating image, please wait..."
   );
 
   try {
-    const response = await fetch(
-      `${apiHost}/v1/generation/${engineId}/text-to-image`,
+    const output = await replicate.run(
+      "stability-ai/stable-diffusion-3:a1a18e0e2af8732f8ee03a3c1b9384ade3e296c342a2f5b03c5929ed764768ca",
       {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Accept: "application/json",
-          Authorization: `Bearer ${stabilityApiKey}`,
-        },
-        body: JSON.stringify({
-          text_prompts: [{ text: prompt }],
-          cfg_scale: 8,
-          height: 1024,
+        input: {
           width: 1024,
-          steps: 50,
-          samples: 1,
-        }),
+          height: 1024,
+          prompt: prompt,
+          num_outputs: 1,
+          aspect_ratio: "3:2",
+          output_format: "webp",
+          guidance_scale: 7,
+          output_quality: 79,
+          negative_prompt: "ugly, distorted",
+          prompt_strength: 0.6,
+          disable_safety_check: true,
+          safety_checker: false,
+        },
       }
     );
+    console.log("output:", output); // Log output
 
-    if (!response.ok) {
-      throw new Error(`Non-200 response: ${await response.text()}`);
-    }
+    // Define the download button here after the output is received
+    const downloadButton = {
+      text: "Original Image",
+      url: output[0], // URL of the image
+    };
 
-    const responseJSON = await response.json();
-    console.log("responseJSON:", responseJSON); // Log the response JSON
-    responseJSON.artifacts.forEach((image, index) => {
-      const buffer = Buffer.from(image.base64, "base64");
-      const filePath = `./temp_image_${index}.png`;
-      fs.writeFileSync(filePath, buffer);
-
-      bot.sendPhoto(chatId, fs.createReadStream(filePath)).then(() => {
-        fs.unlinkSync(filePath);
-        bot.deleteMessage(chatId, processingMessage.message_id);
-      });
+    // Delete the "Generating image" message
+    await bot.deleteMessage(chatId, processingMessage.message_id);
+    // Send the generated image URL to the chat as a reply to the original message with a custom caption
+    await bot.sendPhoto(chatId, output[0], {
+      caption: `𝗜𝗺𝗮𝗴𝗲 𝗚𝗲𝗻𝗲𝗿𝗮𝘁𝗲𝗱 𝘀𝘂𝗰𝗰𝗲𝘀𝘀𝗳𝘂𝗹𝗹𝘆 ✅\n\nGenerated by @${username}\n`,
+      reply_markup: {
+        inline_keyboard: [[downloadButton]],
+      },
+      reply_to_message_id: messageId,
+      parse_mode: "HTML", // Set the parse mode to HTML
     });
   } catch (error) {
-    console.error(error);
-    bot.editMessageText(
+    console.error("Error:", error);
+    // If an error occurs, edit the processing message to inform the user
+    await bot.editMessageText(
       "Sorry, an error occurred while generating the image.",
       {
         chat_id: chatId,
